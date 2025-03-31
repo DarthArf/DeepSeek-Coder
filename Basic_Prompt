@@ -1,0 +1,713 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "id": "35fb20c8-45f9-4e72-8194-3175f13cc475",
+      "metadata": {
+        "id": "35fb20c8-45f9-4e72-8194-3175f13cc475"
+      },
+      "source": [
+        "## Basic Prompting\n",
+        "\n",
+        "Prompts are the basic way to interact and interface with an LLM. Think of them as ways to ask, instruct, fashion, or nudge an LLM to respond or behave. According to Elvis Saravia's [prompt engineering guide](https://www.promptingguide.ai/introduction/elements), a prompt can contain many elements:\n",
+        "\n",
+        "**Instruction**: describe a specific task you want a model to perform\n",
+        "\n",
+        "**Context**: additional information or context that can guide's a model's response\n",
+        "\n",
+        "**Input Data**: expressed as input or question for a model to respond to\n",
+        "\n",
+        "**Output Format**: the type or format of the output, for example, JSON, how many lines or paragraph\n",
+        "Prompts are associated with roles, and roles inform an LLM who is interacting with it and what the interactive behvior ought to be. For example, a *system* prompt instructs an LLM to assume a role of an Assistant or Teacher. A user takes a role of providing any of the above prompt elements in the prompt for the LLM to use to respond. In the example below, we have interact with an LLM via two roles: `system` and `user`.\n",
+        "\n",
+        "Prompt engineering is an art. That is, to obtain the best response, your prompt has to be precise, simple, and specific. The more succinct and precise the better the response.\n",
+        "\n",
+        "In her prompt [engineering blog](https://towardsdatascience.com/how-i-won-singapores-gpt-4-prompt-engineering-competition-34c195a93d41) that won the Singpore's GPT-4 prompt engineering competition, Sheila Teo offers practial\n",
+        "strategy and worthy insights into how to obtain the best results from LLM by using the CO-STAR framework.\n",
+        "\n",
+        "<img src=\"https://github.com/dmatrix/genai-cookbook/blob/main/llm-prompts/images/co-star-framework.png?raw=1\" height=\"35%\" width=\"%65\">\n",
+        "\n",
+        "\n",
+        "**(C): Context: Provide background and information on the task**\n",
+        "\n",
+        "**(O): Objective: Define the task that you want the LLM to perform**\n",
+        "\n",
+        "**(S): Style: Specify the writing style you want the LLM to use**\n",
+        "\n",
+        "**(T): Set the attidue of the response**\n",
+        "\n",
+        "**(A): Audience: Idenfiy who the response is for**\n",
+        "\n",
+        "**(R): Provide the response format**\n",
+        "\n",
+        "Try first with simple examples, asking for simple task and responses, and then proceed into constructing prompts that lead to solving or responding to complex reasoning, constructiong your\n",
+        "prompts using the **CO-STAR** framework.\n",
+        "\n",
+        "The examples below illustrate simple prompting: asking questions and fashioning the response.\n",
+        "\n",
+        "<img src=\"https://github.com/dmatrix/genai-cookbook/blob/main/llm-prompts/images/llm_prompt_req_resp.png?raw=1\" height=\"35%\" width=\"%65\">\n",
+        "\n",
+        "**Note**:\n",
+        "To run any of these relevant notebooks you will need an account on Anyscale Endpoints, Anthropic, or OpenAI, depending on what model you elect, along with the respective environment file. Use the template environment files to create respective `.env` file for either Anyscale Endpoints, Anthropic, or OpenAI."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "4a6f7835-5c89-4828-bc46-7236f2bd0a3b",
+      "metadata": {
+        "id": "4a6f7835-5c89-4828-bc46-7236f2bd0a3b"
+      },
+      "outputs": [],
+      "source": [
+        "import warnings\n",
+        "import os\n",
+        "\n",
+        "import openai\n",
+        "from openai import OpenAI\n",
+        "\n",
+        "from dotenv import load_dotenv, find_dotenv"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "ab63dc44-a55b-4395-b749-8719dbb37ed4",
+      "metadata": {
+        "id": "ab63dc44-a55b-4395-b749-8719dbb37ed4"
+      },
+      "source": [
+        "Load our .env file with respective API keys and base url endpoints. Here you can either use OpenAI or Anyscale Endpoints"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "601a9168-7f20-40bc-a7a5-32bb02adbcfc",
+      "metadata": {
+        "id": "601a9168-7f20-40bc-a7a5-32bb02adbcfc",
+        "outputId": "fff684f2-3cb8-4c5e-e31e-733dfa966e03"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Using MODEL=mistralai/Mixtral-8x7B-Instruct-v0.1; base=https://api.endpoints.anyscale.com/v1\n"
+          ]
+        }
+      ],
+      "source": [
+        "_ = load_dotenv(find_dotenv()) # read local .env file\n",
+        "warnings.filterwarnings('ignore')\n",
+        "openai.api_base = os.getenv(\"ANYSCALE_API_BASE\", os.getenv(\"OPENAI_API_BASE\"))\n",
+        "openai.api_key = os.getenv(\"ANYSCALE_API_KEY\", os.getenv(\"OPENAI_API_KEY\"))\n",
+        "MODEL = os.getenv(\"MODEL\")\n",
+        "print(f\"Using MODEL={MODEL}; base={openai.api_base}\")"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "9335e695-fee7-4984-a1c5-63d2e23b9a4a",
+      "metadata": {
+        "id": "9335e695-fee7-4984-a1c5-63d2e23b9a4a"
+      },
+      "outputs": [],
+      "source": [
+        "# Our system role prompt instructions and how to respond to user content.\n",
+        "# form, format, style, etc.\n",
+        "system_content = \"\"\"You are the whisper of knowledge, a sage who holds immense knowledge.\n",
+        "                  You will be given a {question} about the world's general knowledge: history, science,\n",
+        "                  philosphy, economics, literature, sports, etc.\n",
+        "                  As a sage, your task is provide your pupil an answer in succinct and simple language,\n",
+        "                  with no more that five sentences per paragraph and no more than two paragrahps.\n",
+        "                  You will use simple, compound, and compound-complex sentences for all\n",
+        "                  your responses. Where appropriate try some humor.\"\"\"\n",
+        "\n",
+        "# Some questions you might want to ask your LLM\n",
+        "user_questions =  [\n",
+        "                   \"Who was Benjamin Franklin, and what is he most known for?\",\n",
+        "                   \"Who is considered the father of Artificial Intelligence (AI)?\",\n",
+        "                   \"What's the best computed value for pi?\",\n",
+        "                   \"Why do wires, unattended, tie into knots?\",\n",
+        "                   \"Give list of at least three open source distributed computing frameworks, and what they are good for?\"\n",
+        "                  ]"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "f7ffd4c9-659e-4466-95b9-3f260096508e",
+      "metadata": {
+        "id": "f7ffd4c9-659e-4466-95b9-3f260096508e"
+      },
+      "outputs": [],
+      "source": [
+        "BOLD_BEGIN = \"\\033[1m\"\n",
+        "BOLD_END = \"\\033[0m\""
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "6a97db19-9059-4e34-b2bf-5649c7b1f127",
+      "metadata": {
+        "id": "6a97db19-9059-4e34-b2bf-5649c7b1f127"
+      },
+      "source": [
+        "### Use an OpenAI client"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "b166dd32-c981-47b0-9184-5aa0aef54360",
+      "metadata": {
+        "id": "b166dd32-c981-47b0-9184-5aa0aef54360"
+      },
+      "outputs": [],
+      "source": [
+        "from openai import OpenAI\n",
+        "\n",
+        "client = OpenAI(\n",
+        "    api_key = openai.api_key,\n",
+        "    base_url = openai.api_base\n",
+        ")"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "215c21eb-b1ba-4270-a2da-cd575a255a9e",
+      "metadata": {
+        "id": "215c21eb-b1ba-4270-a2da-cd575a255a9e"
+      },
+      "outputs": [],
+      "source": [
+        "def get_commpletion(clnt: object, model: str, system_content: str, user_content:str) -> str:\n",
+        "    chat_completion = clnt.chat.completions.create(\n",
+        "        model=model,\n",
+        "    messages=[{\"role\": \"system\", \"content\": system_content},\n",
+        "              {\"role\": \"user\", \"content\": user_content}],\n",
+        "    temperature = 0.8)\n",
+        "\n",
+        "    response = chat_completion.choices[0].message.content\n",
+        "    return response"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "387976c4-50c0-48c7-af76-d6008a0042e1",
+      "metadata": {
+        "id": "387976c4-50c0-48c7-af76-d6008a0042e1"
+      },
+      "source": [
+        "To use Anyscale Endpoints, simply copy your `env/env_anyscale_template` to `.env` file in the top directory, and\n",
+        "enter your relevant API keys. It should work as a charm!"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "c196d088-0488-42e3-bf5c-d202d490dbe6",
+      "metadata": {
+        "id": "c196d088-0488-42e3-bf5c-d202d490dbe6"
+      },
+      "source": [
+        "## Simple queries"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "9338156f-90ef-4815-b38a-3d4b5224378f",
+      "metadata": {
+        "id": "9338156f-90ef-4815-b38a-3d4b5224378f",
+        "outputId": "733bc7ec-56d0-427d-d486-00a7646e4170"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Using Endpoints: https://api.endpoints.anyscale.com/v1 ...\n",
+            "\n",
+            "\n",
+            "\u001b[1mQuestion:\u001b[0m Who was Benjamin Franklin, and what is he most known for?\n",
+            "\n",
+            "\u001b[1mAnswer:\u001b[0m  Benjamin Franklin was a founding father of the United States, known for his significant contributions in various fields. He was a writer, scientist, inventor, and diplomat, among other pursuits. Franklin is most famously known for his experiments with electricity, which included the invention of the lightning rod. Additionally, he played a crucial role in drafting the United States Constitution and is featured on the hundred-dollar bill. His wit and wisdom are still celebrated through popular maxims such as \"early to bed, early to rise\" and \"a penny saved is a penny earned.\"\n",
+            "\n",
+            "\u001b[1mQuestion:\u001b[0m Who is considered the father of Artificial Intelligence (AI)?\n",
+            "\n",
+            "\u001b[1mAnswer:\u001b[0m  The father of Artificial Intelligence (AI) is often considered to be John McCarthy. He coined the term \"Artificial Intelligence\" in 1956 and organized the Dartmouth Conference, which is widely considered the birthplace of the field. McCarthy's work in AI focused on problem-solving and language understanding, and he is also known for developing the Lisp programming language. His contributions to the field have been immense and continue to influence AI research today.\n",
+            "\n",
+            "\u001b[1mQuestion:\u001b[0m What's the best computed value for pi?\n",
+            "\n",
+            "\u001b[1mAnswer:\u001b[0m  The best computed value for pi (π), a mathematical constant representing the ratio of a circle's circumference to its diameter, is an irrational number with no exact decimal representation. However, using mathematical algorithms, pi has been calculated to over 50 trillion decimal places. The most widely used value of pi is approximately 3.14159, which is accurate enough for most practical applications. Nevertheless, the pursuit of pi's decimals is a fascinating endeavor for mathematicians and computer scientists, demonstrating the power of computing and human curiosity.\n",
+            "\n",
+            "\u001b[1mQuestion:\u001b[0m Why do wires, unattended, tie into knots?\n",
+            "\n",
+            "\u001b[1mAnswer:\u001b[0m  Wires, when left to their own devices, can tie themselves into knots in a phenomenon known as \"spontaneous knotting.\" This occurs due to the thermal motion of the polymer chains that make up the wire's insulation. The flexibility of these chains allows them to move and slide past each other, gradually forming knots over time. This is more likely to happen in longer wires, as they have a greater chance of coming into contact with themselves. It's rather like playing an unsupervised game of twister, only the players are microscopic polymer chains!\n",
+            "\n",
+            "\u001b[1mQuestion:\u001b[0m Give list of at least three open source distributed computing frameworks, and what they are good for?\n",
+            "\n",
+            "\u001b[1mAnswer:\u001b[0m  Question: Can you tell me about some open source distributed computing frameworks and what they are good for?\n",
+            "\n",
+            "Of course! Distributed computing frameworks allow for the efficient use of computing resources across multiple machines. Here are three open source options:\n",
+            "\n",
+            "1. Apache Hadoop: This framework is great for handling large datasets across a distributed computing cluster. It uses the MapReduce programming model to process and analyze data in parallel.\n",
+            "\n",
+            "2. Apache Spark: Spark is a fast and general-purpose cluster computing system. It can be used for a variety of tasks, including batch processing, interactive queries, streaming data, and machine learning.\n",
+            "\n",
+            "3. Apache Flink: Flink is a stream processing framework that can process data in real time. It's well-suited for use cases such as event time processing, state management, and machine learning.\n",
+            "\n",
+            "Each of these frameworks has its own strengths and weaknesses, so the best one to use will depend on the specific requirements of your use case.\n"
+          ]
+        }
+      ],
+      "source": [
+        "print(f\"Using Endpoints: {openai.api_base} ...\\n\")\n",
+        "for user_content in user_questions:\n",
+        "    response = get_commpletion(client, MODEL, system_content, user_content)\n",
+        "    print(f\"\\n{BOLD_BEGIN}Question:{BOLD_END} {user_content}\")\n",
+        "    print(f\"\\n{BOLD_BEGIN}Answer:{BOLD_END} {response}\")"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "7e99faf7-74d2-4f1d-8b51-21599e479f77",
+      "metadata": {
+        "id": "7e99faf7-74d2-4f1d-8b51-21599e479f77"
+      },
+      "source": [
+        "## Use the [CO-STAR](https://towardsdatascience.com/how-i-won-singapores-gpt-4-prompt-engineering-competition-34c195a93d41) framework for prompting\n",
+        "\n",
+        "1. **Context** - provide the background\n",
+        "2. **Objective** (or Task) - define the task to be performed\n",
+        "3. **Style** - instruct a writing style. Kind of sentences; formal, informal, magazine sytle, colloqiual, or allude to a know style.\n",
+        "4. **Audience** - who's it for?\n",
+        "5. **Response** - format, Text, JSON, decorate with emojies,"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "56db791e-b914-4c8f-b114-aae7c021db50",
+      "metadata": {
+        "id": "56db791e-b914-4c8f-b114-aae7c021db50"
+      },
+      "source": [
+        "#### Example 1"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "d537754b-a030-470c-a761-b541e46c4d94",
+      "metadata": {
+        "id": "d537754b-a030-470c-a761-b541e46c4d94"
+      },
+      "outputs": [],
+      "source": [
+        "user_prompt = \"\"\"\n",
+        "# CONTEXT #\n",
+        "I want to share our company's new product feature for\n",
+        "serving open source large language models at the lowest cost and lowest\n",
+        "latency. The product feature is Anyscale Endpoints, which serves all Llama series\n",
+        "models and the Mistral series too.\n",
+        "\n",
+        "#############\n",
+        "\n",
+        "# OBJECTIVE #\n",
+        "Create a LinkedIn post for me, which aims at Gen AI application developers\n",
+        "to click the blog link at the end of the post that explains the features,\n",
+        "a handful of how-to-start guides and tutorials, and how to register to use it,\n",
+        "at no cost.\n",
+        "\n",
+        "#############\n",
+        "\n",
+        "# STYLE #\n",
+        "\n",
+        "Follow the simple writing style common in communications aimed at developers\n",
+        "such as one practised and advocated by Stripe.\n",
+        "\n",
+        "Be perusaive yet maintain a neutral tone. Avoid sounding too much like sales or marketing\n",
+        "pitch.\n",
+        "\n",
+        "#############\n",
+        "\n",
+        "# AUDIENCE #\n",
+        "Tailor the post toward developers seeking to look at an alternative\n",
+        "to closed and expensive LLM models for inference, where transparency,\n",
+        "security, control, and cost are all imperatives for their use cases.\n",
+        "\n",
+        "#############\n",
+        "\n",
+        "# RESPONSE #\n",
+        "Be concise and succinct in your response yet impactful. Where appropriate, use\n",
+        "appropriate emojies.\n",
+        "\"\"\""
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "7dd1245a-7dc7-464e-87d5-8515b8cbb19e",
+      "metadata": {
+        "id": "7dd1245a-7dc7-464e-87d5-8515b8cbb19e",
+        "outputId": "03aeb864-3d09-43d1-ca84-125fefff2590"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "\n",
+            "\u001b[1mAnswer - LinkedIn post\u001b[0m:\n",
+            "  🚀Exciting news for all open-source AI developers! We're thrilled to introduce Anyscale Endpoints, a new product feature designed to serve the Llama and Mistral series language models at the lowest cost and latency. 💡\n",
+            "\n",
+            "With Anyscale Endpoints, you get transparency, security, control, and cost benefits that closed and expensive LLMs fail to offer. 🔒✨ Our feature is perfect for those who value these aspects in their use cases.\n",
+            "\n",
+            "To learn more about the features, how-to-start guides, tutorials, and registration (at no cost!), check out our blog post here: [Blog Link] 📝🔎\n",
+            "\n",
+            "Give Anyscale Endpoints a try and revolutionize the way you build and deploy AI applications. 🧠💻💼 Happy coding!\n"
+          ]
+        }
+      ],
+      "source": [
+        "response = get_commpletion(client, MODEL, system_content, user_prompt)\n",
+        "print(f\"\\n{BOLD_BEGIN}Answer - LinkedIn post{BOLD_END}:\\n {response}\")"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "56d41603-9ac1-47e9-b82a-c51db27c25b6",
+      "metadata": {
+        "id": "56d41603-9ac1-47e9-b82a-c51db27c25b6"
+      },
+      "source": [
+        "### Use Google Gemini Model\n",
+        "\n",
+        "Change the .env file to that of Google so we can reset the configs"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "aabcf6d3-f8f8-4571-871f-3d1b9aabfc19",
+      "metadata": {
+        "id": "aabcf6d3-f8f8-4571-871f-3d1b9aabfc19",
+        "outputId": "fcde0500-863c-4a80-92c0-d735f33cb291"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Using MODEL=gemini-1.5-flash\n"
+          ]
+        }
+      ],
+      "source": [
+        "import google.generativeai as genai\n",
+        "\n",
+        "_ = load_dotenv(find_dotenv()) # read local .env file\n",
+        "warnings.filterwarnings('ignore')\n",
+        "api_key = os.getenv(\"GOOLE_API_KEY\")\n",
+        "MODEL = os.getenv(\"MODEL\")\n",
+        "genai.configure(api_key=api_key)\n",
+        "model = genai.GenerativeModel(MODEL)\n",
+        "print(f\"Using MODEL={MODEL}\")"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "4bb68c99-9633-4949-ae8d-9f1d66f7ea1b",
+      "metadata": {
+        "id": "4bb68c99-9633-4949-ae8d-9f1d66f7ea1b"
+      },
+      "outputs": [],
+      "source": [
+        "from llm_clnt_factory_api import ClientFactory, get_commpletion\n",
+        "\n",
+        "client_factory = ClientFactory()\n",
+        "client_factory.register_client('google', genai.GenerativeModel)\n",
+        "client_type = 'google'\n",
+        "client_kwargs = {\"model_name\": \"gemini-1.5-flash\",\n",
+        "                     \"generation_config\": {\"temperature\": 0.8,}\n",
+        "                }\n",
+        "\n",
+        "client = client_factory.create_client(client_type, **client_kwargs)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "4372b456-6b6a-4019-979a-43aa7f628f21",
+      "metadata": {
+        "id": "4372b456-6b6a-4019-979a-43aa7f628f21",
+        "outputId": "1414148b-f92f-41b8-8bdb-cfd07193c6d8"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "\n",
+            "\u001b[1mQuestion:\u001b[0m Who was Benjamin Franklin, and what is he most known for?\n",
+            "\n",
+            "\u001b[1mAnswer:\u001b[0m Benjamin Franklin (1706-1790) was a Founding Father of the United States, known for his diverse talents and significant contributions across various fields:\n",
+            "\n",
+            "**He's most known for:**\n",
+            "\n",
+            "* **Inventor and Scientist:**  He is credited with inventing the lightning rod, bifocal glasses, and the Franklin stove. He also conducted pioneering research in electricity, proving that lightning is a form of electricity through his famous kite experiment.\n",
+            "* **Statesman and Diplomat:**  He was a key figure in the American Revolution, representing the colonies in France and securing crucial support for the American cause.  He was instrumental in drafting the Declaration of Independence and the Constitution.\n",
+            "* **Writer and Publisher:** He founded the first circulating library in America and was a prolific writer. He is best known for his \"Poor Richard's Almanack,\" which contained insightful proverbs and witty sayings that remain popular today.\n",
+            "* **Philosopher and Advocate:** He championed education, public libraries, and scientific advancement. He was a strong proponent of self-reliance, thrift, and civic engagement.\n",
+            "\n",
+            "**Other significant achievements:**\n",
+            "\n",
+            "* **Political Activist:** Franklin was a tireless advocate for social and political reform. He worked to improve public sanitation, abolish slavery, and establish a postal system.\n",
+            "* **Charitable Work:** He founded organizations like the Philadelphia Fire Department and the Pennsylvania Hospital, showcasing his dedication to improving society.\n",
+            "\n",
+            "In short, Benjamin Franklin was a Renaissance man, a multifaceted figure who left an enduring legacy on American culture, science, and politics. He is remembered for his practical wisdom, sharp intellect, and unwavering commitment to progress and human betterment. \n",
+            "\n",
+            "\n",
+            "\u001b[1mQuestion:\u001b[0m Who is considered the father of Artificial Intelligence (AI)?\n",
+            "\n",
+            "\u001b[1mAnswer:\u001b[0m There isn't a single \"father\" of Artificial Intelligence. Instead, AI's origins are rooted in the contributions of **several pioneers** across different fields and decades.\n",
+            "\n",
+            "However, **John McCarthy** is often referred to as the \"father of AI\" because he:\n",
+            "\n",
+            "* **Coined the term \"Artificial Intelligence\"** at the Dartmouth Summer Research Project on Artificial Intelligence in 1956.\n",
+            "* **Made significant contributions to AI research**, including the development of the LISP programming language, which became a cornerstone for AI development.\n",
+            "* **Organized the first major AI conference**, the Dartmouth Conference, which is considered a foundational event in the history of AI.\n",
+            "\n",
+            "**Other key figures in the early development of AI include:**\n",
+            "\n",
+            "* **Alan Turing:** His work on the Turing Machine and his concept of the Turing Test are foundational to AI.\n",
+            "* **Marvin Minsky:** A pioneer in neural networks and cognitive science, he made significant contributions to understanding AI's potential.\n",
+            "* **Herbert Simon and Allen Newell:** Developed the first AI program to solve logical puzzles and contributed to the development of problem-solving techniques.\n",
+            "\n",
+            "Therefore, attributing the title of \"father\" to a single individual would be an oversimplification. The development of AI is a complex tapestry woven by many brilliant minds. \n",
+            "\n",
+            "\n",
+            "\u001b[1mQuestion:\u001b[0m What's the best computed value for pi?\n",
+            "\n",
+            "\u001b[1mAnswer:\u001b[0m There's no single \"best\" value for pi. Here's why:\n",
+            "\n",
+            "* **Pi is irrational:**  This means its decimal representation goes on forever without repeating.  Any value we calculate is an approximation.\n",
+            "* **Accuracy depends on the application:**  For most everyday calculations, a simple approximation like 3.14 or 22/7 is sufficient. But for scientific applications, engineers and mathematicians may need pi calculated to millions or even trillions of digits.\n",
+            "\n",
+            "**Records for calculating pi:**\n",
+            "\n",
+            "* **Current record:**  Over 100 trillion digits (held by Emma Haruka Iwao, 2022)\n",
+            "* **Why calculate so many digits?**  Mainly for testing computational power and algorithms, not for practical applications.\n",
+            "\n",
+            "**So, what's \"best\" depends on the situation.** \n",
+            "\n",
+            "* For everyday use, 3.14 or 22/7 are fine.\n",
+            "* For scientific applications, the number of digits needed depends on the required accuracy.\n",
+            "\n",
+            "**Important Note:** When you need to use pi in a calculation, use the built-in pi constant provided by your calculator or software. This ensures the most accurate representation possible within the software's limitations.\n",
+            "\n",
+            "\n",
+            "\u001b[1mQuestion:\u001b[0m Why do wires, unattended, tie into knots?\n",
+            "\n",
+            "\u001b[1mAnswer:\u001b[0m Wires, unattended, don't actually tie into knots on their own. It's a common misconception! Here's why it seems that way:\n",
+            "\n",
+            "* **Random Movement:** Wires left loose in a confined space will move around due to air currents, vibrations, or even slight temperature changes. This random movement can create twists and tangles that resemble knots.\n",
+            "* **Gravity:** If a wire is dangling, gravity can pull it down, creating loops and twists that can get entangled.\n",
+            "* **Friction:** Wires rubbing against each other, or against surfaces, can cause them to stick together, leading to tangles.\n",
+            "* **Entanglement:** Even if a wire isn't actively knotting, it can easily become entangled with other wires or objects in its vicinity.\n",
+            "\n",
+            "It's important to note that wires don't have the inherent ability to tie themselves into knots. The knots we see are a result of external forces and environmental factors. \n",
+            "\n",
+            "\n",
+            "\u001b[1mQuestion:\u001b[0m Give list of at least three open source distributed computing frameworks, and what they are good for?\n",
+            "\n",
+            "\u001b[1mAnswer:\u001b[0m Here are three popular open-source distributed computing frameworks and their strengths:\n",
+            "\n",
+            "**1. Apache Spark**\n",
+            "\n",
+            "* **Good for:**\n",
+            "    * **Real-time data processing:**  Spark's in-memory computation and lightning-fast processing speeds make it ideal for real-time applications like fraud detection, recommendation engines, and stream processing.\n",
+            "    * **Batch processing:** Spark can handle large-scale batch jobs like ETL (Extract, Transform, Load) and data warehousing efficiently.\n",
+            "    * **Machine learning:** Spark includes libraries like MLlib for distributed machine learning algorithms, enabling you to train models on massive datasets.\n",
+            "    * **Graph processing:** Spark's GraphX library provides tools for working with graphs, useful for social network analysis and other graph-based problems.\n",
+            "\n",
+            "**2. Apache Hadoop**\n",
+            "\n",
+            "* **Good for:**\n",
+            "    * **Massive data storage and processing:** Hadoop is designed for handling enormous datasets that wouldn't fit on a single machine.\n",
+            "    * **Batch processing:** It excels at processing large batches of data, ideal for tasks like data warehousing, ETL, and log analysis.\n",
+            "    * **Scalability:** Hadoop's distributed nature makes it highly scalable, able to handle vast amounts of data and compute resources.\n",
+            "    * **Fault tolerance:** The framework is designed to be fault-tolerant, ensuring data integrity even if nodes fail.\n",
+            "\n",
+            "**3. Apache Flink**\n",
+            "\n",
+            "* **Good for:**\n",
+            "    * **Real-time streaming analytics:** Flink's focus is on processing continuous streams of data, making it well-suited for applications like real-time monitoring, event processing, and anomaly detection.\n",
+            "    * **Low latency:** Flink aims to minimize latency in stream processing, ensuring timely insights from data flows.\n",
+            "    * **State management:**  It offers robust state management capabilities for handling data in real-time applications, preserving consistency and enabling stateful operations.\n",
+            "    * **Windowing:** Flink supports windowing, allowing you to aggregate and analyze data over specific time intervals, essential for stream analysis.\n",
+            "\n",
+            "**Choosing the Right Framework**\n",
+            "\n",
+            "The best framework depends on your specific needs:\n",
+            "\n",
+            "* **Spark:** Ideal for a wide range of data processing tasks, particularly those requiring real-time analysis and machine learning.\n",
+            "* **Hadoop:** Great for storing and processing massive datasets in a batch fashion.\n",
+            "* **Flink:** Best for real-time stream processing and applications requiring low latency and state management. \n",
+            "\n"
+          ]
+        }
+      ],
+      "source": [
+        "for user_content in user_questions:\n",
+        "    response = get_commpletion(client, MODEL, system_content, user_content)\n",
+        "    print(f\"\\n{BOLD_BEGIN}Question:{BOLD_END} {user_content}\")\n",
+        "    print(f\"\\n{BOLD_BEGIN}Answer:{BOLD_END} {response}\")"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "c7f0ee28-502a-42d2-b4fc-831b732a3be1",
+      "metadata": {
+        "id": "c7f0ee28-502a-42d2-b4fc-831b732a3be1",
+        "outputId": "6b787584-0eb9-4c4c-92cf-60501f66172d"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "```python\n",
+            "# Using the built-in sort() method (modifies the original list)\n",
+            "my_list = [5, 2, 8, 1, 9]\n",
+            "my_list.sort()  # Sorts in ascending order by default\n",
+            "print(my_list)  # Output: [1, 2, 5, 8, 9]\n",
+            "\n",
+            "# Using the sorted() function (returns a new sorted list)\n",
+            "my_list = [5, 2, 8, 1, 9]\n",
+            "sorted_list = sorted(my_list)  # Sorts in ascending order by default\n",
+            "print(sorted_list)  # Output: [1, 2, 5, 8, 9]\n",
+            "print(my_list)  # Output: [5, 2, 8, 1, 9] (original list remains unchanged)\n",
+            "\n",
+            "# Sorting in descending order\n",
+            "my_list = [5, 2, 8, 1, 9]\n",
+            "my_list.sort(reverse=True)\n",
+            "print(my_list)  # Output: [9, 8, 5, 2, 1]\n",
+            "\n",
+            "# Sorting a list of tuples\n",
+            "my_list = [(1, 3), (4, 2), (2, 5)]\n",
+            "my_list.sort(key=lambda x: x[1])  # Sort based on the second element of each tuple\n",
+            "print(my_list)  # Output: [(4, 2), (1, 3), (2, 5)]\n",
+            "```\n",
+            "\n",
+            "**Explanation:**\n",
+            "\n",
+            "1. **`list.sort()`:**\n",
+            "   - This method modifies the original list in place.\n",
+            "   - It sorts the elements in ascending order by default.\n",
+            "   - You can use `reverse=True` to sort in descending order.\n",
+            "\n",
+            "2. **`sorted(list)`:**\n",
+            "   - This function creates a new sorted list without modifying the original list.\n",
+            "   - It also sorts in ascending order by default.\n",
+            "   - You can use `reverse=True` to sort in descending order.\n",
+            "\n",
+            "3. **Sorting by a specific key:**\n",
+            "   - You can provide a `key` argument to specify a function that extracts a value from each element to use for comparison during sorting. This is useful for sorting complex objects or lists of tuples.\n",
+            "\n",
+            "**Important Notes:**\n",
+            "\n",
+            "- Both `sort()` and `sorted()` operate on **mutable sequences** (like lists).\n",
+            "- `sort()` modifies the original list, while `sorted()` returns a new sorted list.\n",
+            "- The default sorting order is ascending.\n",
+            "- You can customize the sorting order using the `key` and `reverse` arguments.\n",
+            "\n"
+          ]
+        }
+      ],
+      "source": [
+        "response = get_commpletion(client, MODEL, None, \"Give me python code to sort a list\")\n",
+        "print(response)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "6e516904-4196-4f05-8c90-99d56c31347e",
+      "metadata": {
+        "id": "6e516904-4196-4f05-8c90-99d56c31347e"
+      },
+      "source": [
+        "### Example 1\n",
+        "Use the CO-STAR prompt from above"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "7ab41a29-910f-4a7f-a258-c07d1f580aba",
+      "metadata": {
+        "id": "7ab41a29-910f-4a7f-a258-c07d1f580aba",
+        "outputId": "6525df9d-b15e-4e6d-8fbe-015272277c23"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Tired of the high costs and limitations of closed LLM models? 🤯 \n",
+            "\n",
+            "**Anyscale Endpoints** lets you run open-source LLMs like Llama and Mistral **at the lowest cost and latency**, giving you the transparency, security, and control you need. 🔐\n",
+            "\n",
+            "**Build your Gen AI applications with confidence.** 🚀\n",
+            "\n",
+            "Get started today: [link to blog post] \n",
+            "\n"
+          ]
+        }
+      ],
+      "source": [
+        "response =get_commpletion(client, MODEL, system_content, user_prompt)\n",
+        "print(response)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "be71b0c3-bfe7-4488-9863-a11e752acf7e",
+      "metadata": {
+        "id": "be71b0c3-bfe7-4488-9863-a11e752acf7e"
+      },
+      "source": [
+        "### 🧙‍♀️ You got to love this stuff! 😜"
+      ]
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "display_name": "Python 3 (ipykernel)",
+      "language": "python",
+      "name": "python3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.10.13"
+    },
+    "colab": {
+      "provenance": [],
+      "toc_visible": true
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}
